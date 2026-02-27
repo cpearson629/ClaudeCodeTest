@@ -71,7 +71,46 @@
     #overlay-sub {
       font-size: 1.1rem;
       color: #aaa;
-      margin-bottom: 2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    #weapon-select-label {
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      color: #555;
+      margin-bottom: 0.5rem;
+    }
+
+    #weapon-select {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border: 2px solid #a8dadc;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #weapon-select button {
+      flex: 1;
+      padding: 0.45rem 0.8rem;
+      font-size: 0.88rem;
+      border: none;
+      background: transparent;
+      color: #a8dadc;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 1px;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    #weapon-select button + button {
+      border-left: 2px solid #a8dadc;
+    }
+
+    #weapon-select button.active {
+      background: #a8dadc;
+      color: #1a1a2e;
+      font-weight: bold;
     }
 
     #overlay-btn {
@@ -174,6 +213,12 @@
       <div id="overlay-box">
         <div id="overlay-title"></div>
         <div id="overlay-sub"></div>
+        <div id="weapon-select-label">SELECT WEAPON</div>
+        <div id="weapon-select">
+          <button id="btn-machinegun" class="active" onclick="setWeapon('machinegun')">Machine Gun</button>
+          <button id="btn-shotgun" onclick="setWeapon('shotgun')">Shotgun</button>
+          <button id="btn-sniper" onclick="setWeapon('sniper')">Sniper Rifle</button>
+        </div>
         <button id="overlay-btn"></button>
       </div>
     </div>
@@ -201,6 +246,18 @@
     const BULLET_RADIUS   = 5;
     const BULLET_DAMAGE   = 10;
     const FIRE_RATE       = 0.12;
+
+    const SHOTGUN_PELLETS   = 5;
+    const SHOTGUN_SPREAD    = 0.45;
+    const SHOTGUN_SPEED     = 450;
+    const SHOTGUN_RADIUS    = 4;
+    const SHOTGUN_DAMAGE    = 4;
+    const SHOTGUN_FIRE_RATE = 0.65;
+
+    const SNIPER_SPEED     = 950;
+    const SNIPER_RADIUS    = 8;
+    const SNIPER_DAMAGE    = 40;
+    const SNIPER_FIRE_RATE = 1.1;
 
     const BASIC_RADIUS      = 12;
     const BASIC_SPEED_BASE  = 90;
@@ -251,6 +308,7 @@
     let currentSpawnInterval  = SPAWN_INTERVAL_BASE;
     let currentEnemySpeed     = BASIC_SPEED_BASE;
     let spawnBatchSize        = 1;
+    let selectedWeapon        = 'machinegun';
 
     // ── DOM cache ──────────────────────────────────────────────────────────────
     const canvas       = document.getElementById('canvas');
@@ -279,6 +337,14 @@
 
     function hidePauseOverlay() {
       pauseOverlay.classList.remove('show');
+    }
+
+    // ── Weapon selection ───────────────────────────────────────────────────────
+    function setWeapon(w) {
+      selectedWeapon = w;
+      document.getElementById('btn-machinegun').classList.toggle('active', w === 'machinegun');
+      document.getElementById('btn-shotgun').classList.toggle('active', w === 'shotgun');
+      document.getElementById('btn-sniper').classList.toggle('active', w === 'sniper');
     }
 
     // ── Player factory ─────────────────────────────────────────────────────────
@@ -406,17 +472,37 @@
     function updateFireTimer(dt) {
       if (fireTimer > 0) { fireTimer -= dt; }
       if (mouseDown && fireTimer <= 0) {
-        fireTimer = FIRE_RATE;
-        const dx  = mouseX - player.x;
-        const dy  = mouseY - player.y;
-        const len = Math.sqrt(dx * dx + dy * dy) || 1;
-        bullets.push({
-          x:      player.x,
-          y:      player.y,
-          vx:     (dx / len) * BULLET_SPEED,
-          vy:     (dy / len) * BULLET_SPEED,
-          radius: BULLET_RADIUS
-        });
+        const dx         = mouseX - player.x;
+        const dy         = mouseY - player.y;
+        const len        = Math.sqrt(dx * dx + dy * dy) || 1;
+        const baseAngle  = Math.atan2(dy, dx);
+
+        if (selectedWeapon === 'machinegun') {
+          fireTimer = FIRE_RATE;
+          bullets.push({
+            x: player.x, y: player.y,
+            vx: (dx / len) * BULLET_SPEED, vy: (dy / len) * BULLET_SPEED,
+            radius: BULLET_RADIUS, damage: BULLET_DAMAGE, color: '#e94560'
+          });
+        } else if (selectedWeapon === 'shotgun') {
+          fireTimer = SHOTGUN_FIRE_RATE;
+          for (let i = 0; i < SHOTGUN_PELLETS; i++) {
+            const spread = (i / (SHOTGUN_PELLETS - 1) - 0.5) * SHOTGUN_SPREAD;
+            const angle  = baseAngle + spread;
+            bullets.push({
+              x: player.x, y: player.y,
+              vx: Math.cos(angle) * SHOTGUN_SPEED, vy: Math.sin(angle) * SHOTGUN_SPEED,
+              radius: SHOTGUN_RADIUS, damage: SHOTGUN_DAMAGE, color: '#f4a261'
+            });
+          }
+        } else if (selectedWeapon === 'sniper') {
+          fireTimer = SNIPER_FIRE_RATE;
+          bullets.push({
+            x: player.x, y: player.y,
+            vx: (dx / len) * SNIPER_SPEED, vy: (dy / len) * SNIPER_SPEED,
+            radius: SNIPER_RADIUS, damage: SNIPER_DAMAGE, color: '#a8dadc'
+          });
+        }
       }
     }
 
@@ -479,7 +565,7 @@
         for (let ei = enemies.length - 1; ei >= 0; ei--) {
           const e = enemies[ei];
           if (circlesOverlap(b.x, b.y, b.radius, e.x, e.y, e.radius)) {
-            e.hp -= BULLET_DAMAGE;
+            e.hp -= b.damage;
             e.hitFlashTimer = 0.08;
             bullets.splice(bi, 1);
             if (e.hp <= 0) {
@@ -629,9 +715,9 @@
     }
 
     function drawBullets() {
-      ctx.fillStyle = '#e94560';
       for (let i = 0; i < bullets.length; i++) {
         const b = bullets[i];
+        ctx.fillStyle = b.color;
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
         ctx.fill();
@@ -733,6 +819,16 @@
       ctx.fillStyle = '#a8dadc';
       ctx.font      = 'bold 18px Segoe UI, sans-serif';
       ctx.fillText(wave, CANVAS_W - 14, 36);
+
+      // Weapon name (bottom-right)
+      const weaponNames = { machinegun: 'MACHINE GUN', shotgun: 'SHOTGUN', sniper: 'SNIPER RIFLE' };
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#555';
+      ctx.font      = '10px Segoe UI, sans-serif';
+      ctx.fillText('WEAPON', CANVAS_W - 14, CANVAS_H - 18);
+      ctx.fillStyle = '#a8dadc';
+      ctx.font      = 'bold 13px Segoe UI, sans-serif';
+      ctx.fillText(weaponNames[selectedWeapon], CANVAS_W - 14, CANVAS_H - 6);
     }
 
     // ── Game loop ──────────────────────────────────────────────────────────────
