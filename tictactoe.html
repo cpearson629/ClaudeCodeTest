@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      letter-spacing: 2px;
+      color: #e94560;
+    }
+
+    #mode-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.2rem;
+      border: 2px solid #e94560;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #mode-toggle button {
+      padding: 0.4rem 1.2rem;
+      font-size: 0.9rem;
+      border: none;
+      background: transparent;
+      color: #e94560;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 1px;
+    }
+
+    #mode-toggle button.active {
+      background: #e94560;
+      color: #fff;
+    }
+
+    #difficulty {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.2rem;
+      border: 2px solid #555;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    #difficulty button {
+      padding: 0.4rem 1rem;
+      font-size: 0.85rem;
+      border: none;
+      background: transparent;
+      color: #aaa;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    #difficulty button.active {
+      background: #444;
+      color: #fff;
+    }
+
+    #status {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+      height: 1.5rem;
+      color: #a8dadc;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 120px);
+      grid-template-rows: repeat(3, 120px);
+      gap: 8px;
+    }
+
+    .cell {
+      background: #16213e;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.5rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+
+    .cell:hover:not(.taken) {
+      background: #0f3460;
+      transform: scale(1.05);
+    }
+
+    .cell.taken { cursor: default; }
+
+    .cell.x { color: #e94560; }
+    .cell.o { color: #a8dadc; }
+
+    .cell.win { background: #0f3460; animation: pulse 0.5s ease; }
+
+    @keyframes pulse {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    #restart {
+      margin-top: 1.8rem;
+      padding: 0.6rem 2rem;
+      font-size: 1rem;
+      border: 2px solid #e94560;
+      background: transparent;
+      color: #e94560;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 1px;
+    }
+
+    #restart:hover {
+      background: #e94560;
+      color: #fff;
+    }
+
+    #score {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
+      color: #aaa;
+    }
+
+    #score span { font-weight: bold; }
+    .sx { color: #e94560; }
+    .so { color: #a8dadc; }
+
+    /* End screen overlay */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 20, 0.85);
+      backdrop-filter: blur(4px);
+      z-index: 10;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #overlay.show { display: flex; }
+
+    #overlay-box {
+      background: #16213e;
+      border-radius: 20px;
+      padding: 3rem 4rem;
+      text-align: center;
+      border: 2px solid #0f3460;
+      animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    #overlay-emoji { font-size: 5rem; margin-bottom: 0.5rem; }
+    #overlay-title {
+      font-size: 2.4rem;
+      font-weight: bold;
+      margin-bottom: 0.4rem;
+      letter-spacing: 1px;
+    }
+    #overlay-sub {
+      font-size: 1.1rem;
+      color: #aaa;
+      margin-bottom: 2rem;
+    }
+
+    #overlay-play-again {
+      padding: 0.7rem 2.2rem;
+      font-size: 1.05rem;
+      border: 2px solid #e94560;
+      background: #e94560;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      letter-spacing: 1px;
+      margin-right: 0.8rem;
+    }
+
+    #overlay-play-again:hover { background: #c73652; border-color: #c73652; }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe</h1>
+
+  <div id="mode-toggle">
+    <button id="btn-human" class="active" onclick="setMode('human')">2 Players</button>
+    <button id="btn-cpu" onclick="setMode('cpu')">vs Computer</button>
+  </div>
+
+  <div id="difficulty" style="display:none">
+    <button id="diff-easy" onclick="setDiff('easy')">Easy</button>
+    <button id="diff-hard" class="active" onclick="setDiff('hard')">Hard</button>
+  </div>
+
+  <!-- End screen overlay -->
+  <div id="overlay">
+    <div id="overlay-box">
+      <div id="overlay-emoji"></div>
+      <div id="overlay-title"></div>
+      <div id="overlay-sub"></div>
+      <button id="overlay-play-again" onclick="init()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="score">
+    <div>X <span class="sx" id="scoreX">0</span></div>
+    <div>Draws <span id="scoreD">0</span></div>
+    <div>O <span class="so" id="scoreO">0</span></div>
+  </div>
+  <div id="status">X's turn</div>
+  <div id="board"></div>
+  <button id="restart">Restart</button>
+
+  <script>
+    const WINS = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    let board, current, over;
+    let scores = { X: 0, O: 0, D: 0 };
+    let mode = 'human';   // 'human' | 'cpu'
+    let diff = 'hard';    // 'easy' | 'hard'
+
+    const boardEl = document.getElementById('board');
+    const statusEl = document.getElementById('status');
+
+    function setMode(m) {
+      mode = m;
+      document.getElementById('btn-human').classList.toggle('active', m === 'human');
+      document.getElementById('btn-cpu').classList.toggle('active', m === 'cpu');
+      document.getElementById('difficulty').style.display = m === 'cpu' ? 'flex' : 'none';
+      scores = { X: 0, O: 0, D: 0 };
+      updateScore();
+      init();
+    }
+
+    function setDiff(d) {
+      diff = d;
+      document.getElementById('diff-easy').classList.toggle('active', d === 'easy');
+      document.getElementById('diff-hard').classList.toggle('active', d === 'hard');
+      scores = { X: 0, O: 0, D: 0 };
+      updateScore();
+      init();
+    }
+
+    function showOverlay(emoji, title, sub) {
+      document.getElementById('overlay-emoji').textContent = emoji;
+      document.getElementById('overlay-title').textContent = title;
+      document.getElementById('overlay-sub').textContent = sub;
+      document.getElementById('overlay').classList.add('show');
+    }
+
+    function hideOverlay() {
+      document.getElementById('overlay').classList.remove('show');
+    }
+
+    function init() {
+      hideOverlay();
+      board = Array(9).fill('');
+      current = 'X';
+      over = false;
+      statusEl.textContent = mode === 'cpu' ? "Your turn (X)" : "X's turn";
+      boardEl.innerHTML = '';
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.i = i;
+        cell.addEventListener('click', onClick);
+        boardEl.appendChild(cell);
+      }
+    }
+
+    function placeMove(i, player) {
+      board[i] = player;
+      const cell = boardEl.children[i];
+      cell.textContent = player;
+      cell.classList.add('taken', player.toLowerCase());
+    }
+
+    function checkEnd(player) {
+      const winLine = getWin(board);
+      if (winLine) {
+        winLine.forEach(idx => boardEl.children[idx].classList.add('win'));
+        scores[player]++;
+        updateScore();
+        over = true;
+        setTimeout(() => {
+          if (mode === 'cpu') {
+            if (player === 'X') {
+              showOverlay('🏆', 'You Win!', 'Nice work — you beat the computer!');
+            } else {
+              showOverlay('🤖', 'Computer Wins!', 'Better luck next time.');
+            }
+          } else {
+            showOverlay('🏆', `${player} Wins!`, `Congratulations, Player ${player}!`);
+          }
+        }, 500);
+        return true;
+      }
+      if (board.every(Boolean)) {
+        scores.D++;
+        updateScore();
+        over = true;
+        setTimeout(() => showOverlay('🤝', "It's a Draw!", 'Great game — try again?'), 500);
+        return true;
+      }
+      return false;
+    }
+
+    function onClick(e) {
+      const i = +e.currentTarget.dataset.i;
+      if (over || board[i]) return;
+      if (mode === 'cpu' && current !== 'X') return; // block clicks during CPU turn
+
+      placeMove(i, current);
+      if (checkEnd(current)) return;
+
+      current = current === 'X' ? 'O' : 'X';
+
+      if (mode === 'cpu' && current === 'O') {
+        statusEl.textContent = 'Computer thinking…';
+        // slight delay so the UI updates before the CPU move
+        setTimeout(cpuMove, 300);
+      } else {
+        statusEl.textContent = mode === 'cpu' ? "Your turn (X)" : `${current}'s turn`;
+      }
+    }
+
+    function cpuMove() {
+      if (over) return;
+      const i = diff === 'hard' ? bestMove(board) : easyMove(board);
+      placeMove(i, 'O');
+      if (checkEnd('O')) return;
+      current = 'X';
+      statusEl.textContent = "Your turn (X)";
+    }
+
+    // Random or blocking easy mode
+    function easyMove(b) {
+      // 50% chance to play optimally, otherwise random
+      if (Math.random() < 0.5) return bestMove(b);
+      const empty = b.map((v,i) => v ? null : i).filter(v => v !== null);
+      return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    // Minimax
+    function bestMove(b) {
+      let best = -Infinity, move = -1;
+      for (let i = 0; i < 9; i++) {
+        if (b[i]) continue;
+        b[i] = 'O';
+        const score = minimax(b, false);
+        b[i] = '';
+        if (score > best) { best = score; move = i; }
+      }
+      return move;
+    }
+
+    function minimax(b, isMax) {
+      const w = getWin(b);
+      if (w) return isMax ? -10 : 10;
+      if (b.every(Boolean)) return 0;
+
+      if (isMax) {
+        let best = -Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i]) continue;
+          b[i] = 'O';
+          best = Math.max(best, minimax(b, false));
+          b[i] = '';
+        }
+        return best;
+      } else {
+        let best = Infinity;
+        for (let i = 0; i < 9; i++) {
+          if (b[i]) continue;
+          b[i] = 'X';
+          best = Math.min(best, minimax(b, true));
+          b[i] = '';
+        }
+        return best;
+      }
+    }
+
+    function getWin(b) {
+      return WINS.find(([a,c,d]) => b[a] && b[a] === b[c] && b[c] === b[d]) || null;
+    }
+
+    function updateScore() {
+      document.getElementById('scoreX').textContent = scores.X;
+      document.getElementById('scoreO').textContent = scores.O;
+      document.getElementById('scoreD').textContent = scores.D;
+    }
+
+    document.getElementById('restart').addEventListener('click', init);
+    init();
+  </script>
+</body>
+</html>
