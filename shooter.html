@@ -219,6 +219,7 @@
 
     const GRENADE_MAX          = 3;
     const GRENADE_SPEED        = 300;
+    const GRENADE_DRAG         = 3.0;
     const GRENADE_FUSE         = 1.5;
     const GRENADE_BLAST_RADIUS = 80;
     const GRENADE_DISPLAY_R    = 7;
@@ -368,10 +369,26 @@
     function updateGrenades(dt) {
       for (let i = thrownGrenades.length - 1; i >= 0; i--) {
         const g = thrownGrenades[i];
+
+        const drag = Math.exp(-GRENADE_DRAG * dt);
+        g.vx *= drag;
+        g.vy *= drag;
+
         g.x += g.vx * dt;
         g.y += g.vy * dt;
         g.fuseTimer -= dt;
-        if (g.fuseTimer <= 0) {
+
+        let detonated = g.fuseTimer <= 0;
+        if (!detonated) {
+          for (let ei = 0; ei < enemies.length; ei++) {
+            if (circlesOverlap(g.x, g.y, GRENADE_DISPLAY_R, enemies[ei].x, enemies[ei].y, enemies[ei].radius)) {
+              detonated = true;
+              break;
+            }
+          }
+        }
+
+        if (detonated) {
           explodeGrenade(g.x, g.y);
           thrownGrenades.splice(i, 1);
         }
